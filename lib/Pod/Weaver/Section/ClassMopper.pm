@@ -9,6 +9,7 @@ use Moose;
 use Pod::Elemental::Element::Pod5::Command;
 use Pod::Elemental::Element::Pod5::Ordinary;
 use Pod::Elemental::Element::Nested;
+use Data::Dumper;
 
 # ABSTRACT: Generate some stuff via introspection
 
@@ -33,23 +34,44 @@ sub weave_section {
       $self->_build_methods( ); 
    }
 
+   print STDERR "Document: ", $document, "\nRef: ", ref $document, "\n";
+
+   
+   push @{$document->children}, Pod::Elemental::Element::Nested->new({ 
+      command => 'head1',
+      content => 'METHODS',
+      children => $self->_methods }
+   );
+
+   push @{$document->children},  Pod::Elemental::Element::Nested->new({
+      command => 'head1',
+      content => 'ATTRIBUTES',
+      children => $self->_attrs } );
+
 }
 
 sub _build_attributes { 
    my $self = shift;
-   my $meta = Class::MOP::Class->initialize( $self->_class );
+   my $meta = $self->_class;
    return unless ref $meta;
-   my @chunks = map { $self->_build_attribute_paragraph( $_ ) } @{$meta->get_all_attributes};
+   my @attributes = $meta->get_all_attributes;
+   if( @attributes ) { 
+      my @chunks = map { $self->_build_attribute_paragraph( $_ ) } @attributes;
+      $self->_attrs( \@chunks );
+   }
 
 }
 
 
 sub _build_methods { 
    my $self = shift;
-   my $meta = Class::MOP::Class->initialize( $self->_class );
+   my $meta =  $self->_class;
    return unless ref $meta;
-   my @chunks = map { $self->_build_method_paragraph( $_ ) } @{$meta->get_all_methods};
-   $self->_methods( \@chunks );
+   my @methods = $meta->get_all_methods;
+   if( @methods ) { 
+      my @chunks = map { $self->_build_method_paragraph( $_ ) } @methods;
+      $self->_methods( \@chunks );
+   }
 }
 
 sub _build_method_paragraph { 
@@ -64,6 +86,10 @@ sub _build_method_paragraph {
          content => 'Method originates in ' . $method->original_package_name . '.'
       });
    }
+
+   push @$bits, Pod::Elemental::Element::Pod5::Ordinary->new({
+      content => 'This documentation was automaticaly generated.'
+   });
 
    my $meth = Pod::Elemental::Element::Nested->new( { 
       command => 'head2',
@@ -83,40 +109,44 @@ sub _build_attribute_paragraph {
    
    if( $attribute->has_read_method ) { 
       my $reader = $attribute->get_read_method;
-      push @$bits, Pod::Elemental::ElementPod5::Ordinary->new({ 
+      push @$bits, Pod::Elemental::Element::Pod5::Ordinary->new({ 
          content => 'Reader: ' . $reader
       });
    }
 
    if( $attribute->has_write_method ) { 
       my $writer = $attribute->get_write_method;
-      push @$bits, Pod::Elemental::ElementPod5::Ordinary->new({ 
+      push @$bits, Pod::Elemental::Element::Pod5::Ordinary->new({ 
          content => 'Writer: ' . $writer
       });
    }
    
    # Moose has typecontraints, not Class::MOP.  
-   if( my $type = $attribute->can( 'type_constraint' ) ) { 
-      push @$bits, Pod::Elemental::ElementPod5::Ordinary->new({
-         content => 'Type: ' . $type->()->name
+   if( $attribute->has_type_constraint ) { 
+      push @$bits, Pod::Elemental::Element::Pod5::Ordinary->new({
+         content => 'Type: ' . $attribute->type_constraint->name
       });
    }
 
    # Moose only, again.
-   if( my $req = $attribute->can('is_required') ) { 
-      push @$bits, Pod::Elemental::ElementPod5::Ordinary->new({ 
-         content => 'Required : ' . $req->() ? 'Yes' : 'No'
-      });
+   if( $attribute->can('is_required') ) { 
+#      push @$bits, Pod::Elemental::Element::Pod5::Ordinary->new({ 
+#         content => 'Required : ' . $attribute->is_required ? 'Yes' : 'No'
+#      });
    }
 
    # Moose's 'docmentation' option.
-   if( my $doc = $attribute->can('documentation') ) { 
-      push @$bits, Pod::Elemental::ElementPod5::Ordinary->new({ 
-         content => $doc->()
+   if( $attribute->has_documentation ) { 
+      push @$bits, Pod::Elemental::Element::Pod5::Ordinary->new({ 
+         content => 'Additional documentation: ' . $attribute->documentation
       });
    }
 
-   my $a = Pod::Elemental::ElementPod5::Nested->new({ 
+   push @$bits, Pod::Elemental::Element::Pod5::Ordinary->new({
+      content => 'This documentation was automatically generated.'
+   });
+
+   my $a = Pod::Elemental::Element::Nested->new({ 
       command => 'head2',
       content => $attribute->name,
       children => $bits
@@ -133,19 +163,20 @@ sub _get_classname {
    my $classname;
 
    my $ppi = $input->{ppi_document};
-
-   return unless $ppi;
-   
-   if( my $obj = $ppi->can('find_first') ) { 
-      # neat, easy way, using PPI.
-      my $node = $ppi->('PPI::Statement::Package');
+   unless( ref $ppi eq 'PPI::Document'  ) { 
+      return;
+   }
+   my $node = $ppi->find_first('PPI::Statement::Package');
+   if( $node ) { 
       $classname = $node->namespace;
    } else { 
       # parsing comments.  WHAT COULD GO WRONG.  
       # Shamelessly stolen from Pod::Weaver::Section::Name.  Thanks rjbs!
       ($classname) = $ppi->serialize =~ /^\s*#+\s*PODNAME:\s*(.+)$/m;
    }
-   $self->_class( $classname );
+   my $meta = Class::MOP::Class->initialize( $classname );
+   $self->_class( $meta );
+
    return $classname;
 }
 
