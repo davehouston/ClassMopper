@@ -19,6 +19,22 @@ has '_attrs' => ( is => 'rw' );
 has '_methods' => ( is => 'rw' );
 has '_class' => ( is => 'rw' );
 
+has '_method_skip' => ( 
+   is => 'ro', 
+   isa => 'HashRef',
+   default => sub {{
+      meta => 1,
+      BUILDARGS => 1,
+      BUILDALL => 1,
+      DEMOLISHALL => 1,
+      does => 1,
+      DOES => 1,
+      dump => 1,
+      can => 1,
+      VERSION => 1
+   }}
+);
+
 sub weave_section { 
    my $self = shift;
    my( $document, $input ) = @_;
@@ -28,26 +44,30 @@ sub weave_section {
 
    unless( $input->{attributes}->{skip} ) { 
       $self->_build_attributes( );
-   }
+      if( $self->_attrs ) { 
+         push @{$document->children},  Pod::Elemental::Element::Nested->new({
+            command => 'head1',
+            content => 'ATTRIBUTES',
+            children => $self->_attrs } 
+          );
+       }
+
+  }
 
    unless( $input->{methods}->{skip} ) { 
-      $self->_build_methods( ); 
-   }
+      $self->_build_methods( );
+      if( $self->_methods ) { 
+         push @{$document->children}, Pod::Elemental::Element::Nested->new({ 
+            command => 'head1',
+            content => 'METHODS',
+            children => $self->_methods }
+          );
+       }
+  }
 
    print STDERR "Document: ", $document, "\nRef: ", ref $document, "\n";
 
    
-   push @{$document->children}, Pod::Elemental::Element::Nested->new({ 
-      command => 'head1',
-      content => 'METHODS',
-      children => $self->_methods }
-   );
-
-   push @{$document->children},  Pod::Elemental::Element::Nested->new({
-      command => 'head1',
-      content => 'ATTRIBUTES',
-      children => $self->_attrs } );
-
 }
 
 sub _build_attributes { 
@@ -79,9 +99,18 @@ sub _build_method_paragraph {
    my $self = shift;
    my $method = shift;   
    return unless ref $method;
+   my $name = $method->name;
+
+   if( exists $self->_method_skip->{$name} ) { 
+      return;  # Skip over some of the more .. UNIVERSAL methods..
+   }
+
+   if( $method->original_package_name =~ /^Moose::Object/ ) { 
+      return;  # No one wants to see that shit
+   }
 
    my $bits = [];
-   if( $self->_class ne $method->original_package_name ) { 
+   if( $self->_class ne $method->original_package_name ) {
       push @$bits, Pod::Elemental::Element::Pod5::Ordinary->new({ 
          content => 'Method originates in ' . $method->original_package_name . '.'
       });
@@ -129,10 +158,10 @@ sub _build_attribute_paragraph {
    }
 
    # Moose only, again.
-   if( $attribute->can('is_required') ) { 
-#      push @$bits, Pod::Elemental::Element::Pod5::Ordinary->new({ 
-#         content => 'Required : ' . $attribute->is_required ? 'Yes' : 'No'
-#      });
+   if( $attribute->is_required ) { 
+      push @$bits, Pod::Elemental::Element::Pod5::Ordinary->new({ 
+         content => 'This attribute is required.'
+      });
    }
 
    # Moose's 'docmentation' option.
