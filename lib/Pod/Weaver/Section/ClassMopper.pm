@@ -1,15 +1,10 @@
 package Pod::Weaver::Section::ClassMopper;
-
-BEGIN { 
-   $Pod::Weaver::Plugin::ClassMopper::AUTHORITY = 'cpan:DHOUSTON';
-   $Pod::Weaver::Plugin::ClassMopper::VERSION = '0.01';
-}
-
 use Moose;
 use Pod::Elemental::Element::Pod5::Command;
 use Pod::Elemental::Element::Pod5::Ordinary;
 use Pod::Elemental::Element::Nested;
-use Data::Dumper;
+
+our $VERSION = '0.01';
 
 # ABSTRACT: Generate some stuff via introspection
 
@@ -66,7 +61,6 @@ sub weave_section {
             children => $self->_attrs } 
           );
        }
-
   }
 
    unless( $input->{mopper}->{skip_methods} ) { 
@@ -78,7 +72,7 @@ sub weave_section {
             children => $self->_methods }
           );
        }
-  }
+   }
 }
 
 sub _build_attributes { 
@@ -90,7 +84,6 @@ sub _build_attributes {
       my @chunks = map { $self->_build_attribute_paragraph( $_ ) } @attributes;
       $self->_attrs( \@chunks );
    }
-
 }
 
 sub _build_methods { 
@@ -152,12 +145,14 @@ sub _build_attribute_paragraph {
    return unless ref $attribute;
    
    if( $attribute->name =~ /^_/ ) { 
+      # Skip the _methods unless we shouldn't.
       return unless $self->_include_privates;
    }
 
    my $bits = [];
    
    if( $attribute->has_read_method ) { 
+      # is => 'r..'
       my $reader = $attribute->get_read_method;
       push @$bits, Pod::Elemental::Element::Pod5::Ordinary->new({ 
          content => 'Reader: ' . $reader
@@ -165,6 +160,7 @@ sub _build_attribute_paragraph {
    }
 
    if( $attribute->has_write_method ) { 
+      # is => '..w'
       my $writer = $attribute->get_write_method;
       push @$bits, Pod::Elemental::Element::Pod5::Ordinary->new({ 
          content => 'Writer: ' . $writer
@@ -173,6 +169,7 @@ sub _build_attribute_paragraph {
    
    # Moose has typecontraints, not Class::MOP.  
    if( $attribute->has_type_constraint ) { 
+      # has an 'isa => ...'
       push @$bits, Pod::Elemental::Element::Pod5::Ordinary->new({
          content => 'Type: ' . $attribute->type_constraint->name
       });
@@ -185,19 +182,21 @@ sub _build_attribute_paragraph {
       });
    }
 
-   # Moose's 'docmentation' option.
    if( $attribute->has_documentation ) { 
+      # Moose's 'docmentation' option.
       push @$bits, Pod::Elemental::Element::Pod5::Ordinary->new({ 
          content => 'Additional documentation: ' . $attribute->documentation
       });
    }
 
    unless( $self->_skip_tagline ) { 
+      # Adds the 'auto generated' tagline, unless not.
       push @$bits, Pod::Elemental::Element::Pod5::Ordinary->new({ 
          content => 'This documentation was automatically generated.'
       });
    }
-
+   
+   # build up our element, send it on its way.
    my $a = Pod::Elemental::Element::Nested->new({ 
       command => 'head2',
       content => $attribute->name,
@@ -226,7 +225,7 @@ sub _get_classname {
       # Shamelessly stolen from Pod::Weaver::Section::Name.  Thanks rjbs!
       ($classname) = $ppi->serialize =~ /^\s*#+\s*PODNAME:\s*(.+)$/m;
    }
-   Class::MOP::load_class( $classname );
+   Class::MOP::load_class( $classname );  # So the meta has .. something.
    my $meta = Class::MOP::Class->initialize( $classname );
    $self->_class( $meta );
    return $classname;
