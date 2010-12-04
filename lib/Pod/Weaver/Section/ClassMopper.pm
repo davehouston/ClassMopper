@@ -22,7 +22,7 @@ has '_class' => ( is => 'rw' );
 has '_method_skip' => ( 
    is => 'ro', 
    isa => 'HashRef',
-   default => sub {{
+   default => sub {{       # yeah, ugly.  Zip it.
       meta => 1,
       BUILDARGS => 1,
       BUILDALL => 1,
@@ -31,18 +31,33 @@ has '_method_skip' => (
       DOES => 1,
       dump => 1,
       can => 1,
-      VERSION => 1
+      VERSION => 1,
+      DESTROY => 1
    }}
 );
+
+has '_include_privates' => ( is => 'rw', default => 0 );
+has '_skip_tagline' => ( is => 'rw', default => 0 );
 
 sub weave_section { 
    my $self = shift;
    my( $document, $input ) = @_;
 
-   my $class = $input->{mopper}->{class} || 
-      $self->_get_classname( $input );
+   $self->_get_classname( $input );
+   
+   if( $input->{mopper}->{include_private} ) { 
+      $self->_include_privates( 1 );
+   }
 
-   unless( $input->{attributes}->{skip} ) { 
+   if( $input->{mopper}->{no_tagline} ) { 
+      $self->_skip_tagline( 1 );
+   }
+
+   if( $input->{mopper}->{skip_method_list} ) { 
+      $self->_method_skip( $input->{mopper}->{skip_method_list} );
+   }
+
+   unless( $input->{mopper}->{skip_attributes} ) { 
       $self->_build_attributes( );
       if( $self->_attrs ) { 
          push @{$document->children},  Pod::Elemental::Element::Nested->new({
@@ -54,7 +69,7 @@ sub weave_section {
 
   }
 
-   unless( $input->{methods}->{skip} ) { 
+   unless( $input->{mopper}->{skip_methods} ) { 
       $self->_build_methods( );
       if( $self->_methods ) { 
          push @{$document->children}, Pod::Elemental::Element::Nested->new({ 
@@ -64,10 +79,6 @@ sub weave_section {
           );
        }
   }
-
-   print STDERR "Document: ", $document, "\nRef: ", ref $document, "\n";
-
-   
 }
 
 sub _build_attributes { 
@@ -82,12 +93,12 @@ sub _build_attributes {
 
 }
 
-
 sub _build_methods { 
    my $self = shift;
-   my $meta =  $self->_class;
+   my $meta = $self->_class;
    return unless ref $meta;
    my @methods = $meta->get_all_methods;
+
    if( @methods ) { 
       my @chunks = map { $self->_build_method_paragraph( $_ ) } @methods;
       $self->_methods( \@chunks );
@@ -109,6 +120,10 @@ sub _build_method_paragraph {
       return;  # No one wants to see that shit
    }
 
+   if( $name =~ /^_/ ) { 
+      return unless $self->_include_privates; # skip over privates, unless we don't.
+   }
+
    my $bits = [];
    if( $self->_class ne $method->original_package_name ) {
       push @$bits, Pod::Elemental::Element::Pod5::Ordinary->new({ 
@@ -116,9 +131,11 @@ sub _build_method_paragraph {
       });
    }
 
-   push @$bits, Pod::Elemental::Element::Pod5::Ordinary->new({
-      content => 'This documentation was automaticaly generated.'
-   });
+   unless( $self->_skip_tagline ) { 
+      push @$bits, Pod::Elemental::Element::Pod5::Ordinary->new({ 
+         content => 'This documentation was automaticaly generated.'
+      });
+   }
 
    my $meth = Pod::Elemental::Element::Nested->new( { 
       command => 'head2',
@@ -134,6 +151,10 @@ sub _build_attribute_paragraph {
    my $attribute = shift;
    return unless ref $attribute;
    
+   if( $attribute->name =~ /^_/ ) { 
+      return unless $self->_include_privates;
+   }
+
    my $bits = [];
    
    if( $attribute->has_read_method ) { 
@@ -171,9 +192,11 @@ sub _build_attribute_paragraph {
       });
    }
 
-   push @$bits, Pod::Elemental::Element::Pod5::Ordinary->new({
-      content => 'This documentation was automatically generated.'
-   });
+   unless( $self->_skip_tagline ) { 
+      push @$bits, Pod::Elemental::Element::Pod5::Ordinary->new({ 
+         content => 'This documentation was automatically generated.'
+      });
+   }
 
    my $a = Pod::Elemental::Element::Nested->new({ 
       command => 'head2',
@@ -203,15 +226,15 @@ sub _get_classname {
       # Shamelessly stolen from Pod::Weaver::Section::Name.  Thanks rjbs!
       ($classname) = $ppi->serialize =~ /^\s*#+\s*PODNAME:\s*(.+)$/m;
    }
+   Class::MOP::load_class( $classname );
    my $meta = Class::MOP::Class->initialize( $classname );
    $self->_class( $meta );
-
    return $classname;
 }
 
 
 
-1;
+__PACKAGE__->meta->make_immutable;
 
 __END__
 =pod
@@ -225,5 +248,102 @@ Pod::Weaver::Section::ClassMopper - Use Class::MOP introspection to make a coupl
 This section plugin is able to generate two sections for you, B<ATTRIBUTES> and B<METHODS>.  By
 default, only attributes are created.  
 
+Your results will look something like:
+
+=head1 ATTRIBUTES
+
+ =head2 someattribute
+
+ Reader: someattribute
+
+ Type: Str
+
+ This attribute is required.
+
+It should be noted that should an attribute make use of the Moose 'documentation' 
+option, its value will be included here as well.
+
+ =head1 METHODS
+
+ =head2 somemethod
+  
+ Method originates in Some::Parent::Class
+
+ This documentation was automatically generated.
+
+ =head2 another_method 
+ 
+
+
+=head1 OPTIONS
+
+All options are checked under the C<mopper> part of the input..
+
+ $weaver->weave_document({ 
+   ...
+   mopper => { 
+      include_private => 0,
+      skip_attributes => 0,
+      skip_methods => 0,
+      no_tagline => 0,
+      skip_method_list => { 
+         # see below..
+      }
+   },
+   ...
+ });
+
+=head2 C<include_private>
+
+By default, all methods and attributes matching C</^_/> are excluded.  Toggle this
+bit on if you want to see the gory details.
+
+=head2 C<skip_attributes> and C<skip_methods>
+
+Set these to something Perl thinks is true and it'll skip over the appropriate 
+section.  
+
+=head2 C<no_tagline>
+
+Turn the "This documentation was automatically generated" bit off.  It's on 
+by default.
+
+=head2 C<skip_method_list>
+
+Provide a hashref here to provide the B<complete> list of methods you would like
+to skip.   At some point, you should probably just manually edit the docs, guys.
+
+The default list of methods skipped is:
+
+=over 4
+
+=item BUILDARGS
+
+=item BUILDALL
+
+=item DEMOLISHALL
+
+=item does
+
+=item DOES
+
+=item dump
+
+=item can
+
+=item VERSION
+
+=item DESTROY
+
+=back
+
+=head1 AUTHOR
+
+Dave Houston, C<dhouston@cpan.org>, 2010.
+
+=head1 LICENSE
+
+This library is free software; you may redistribute and/or modify it under
+the same terms as Perl itself.
 
 =cut

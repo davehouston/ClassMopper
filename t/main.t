@@ -2,20 +2,18 @@ use Test::More;
 use PPI;
 use Data::Dumper;
 use Pod::Weaver;
-
-
+use lib qw(t/inc);
 
 # Make some 'test' documents..
-#my $doc = PPI::Document->new('lib/Pod/Weaver/Section/ClassMopper.pm');
 my $doc = PPI::Document->new('t/inc/Tester.pm');
-
 my $weaver = Pod::Weaver->new_from_config({ root => 't'});
 
 
 my $document = $weaver->weave_document({
    ppi_document => $doc,
-   attributes => { skip => 0 },
-   methods => { skip => 0 },
+   mopper => { 
+      no_tagline => 1
+   },
    authors => ['Bob MctestAthor']
 });
 
