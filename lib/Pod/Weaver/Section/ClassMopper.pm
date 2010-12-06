@@ -4,7 +4,7 @@ use Pod::Elemental::Element::Pod5::Command;
 use Pod::Elemental::Element::Pod5::Ordinary;
 use Pod::Elemental::Element::Nested;
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 # ABSTRACT: Generate some stuff via introspection
 
@@ -245,11 +245,11 @@ Pod::Weaver::Section::ClassMopper - Use Class::MOP introspection to make a coupl
 =head1 OVERVIEW
 
 This section plugin is able to generate two sections for you, B<ATTRIBUTES> and B<METHODS>.  By
-default, only attributes are created.  
+default, both sections are generated.
 
 Your results will look something like:
 
-=head1 ATTRIBUTES
+ =head1 ATTRIBUTES
 
  =head2 someattribute
 
@@ -287,6 +287,7 @@ All options are checked under the C<mopper> part of the input..
       no_tagline => 0,
       skip_method_list => { 
          # see below..
+         { DESTROY => 1, AUTOLOAD => 1 }
       }
    },
    ...
@@ -294,7 +295,7 @@ All options are checked under the C<mopper> part of the input..
 
 =head2 C<include_private>
 
-By default, all methods and attributes matching C</^_/> are excluded.  Toggle this
+   By default, all methods and attributes matching C</^_/> are excluded.  Toggle this
 bit on if you want to see the gory details.
 
 =head2 C<skip_attributes> and C<skip_methods>
@@ -309,8 +310,10 @@ by default.
 
 =head2 C<skip_method_list>
 
-Provide a hashref here to provide the B<complete> list of methods you would like
-to skip.   At some point, you should probably just manually edit the docs, guys.
+By default, there are several methods (see below) that will be skipped when 
+generating your list.  Most of them are from UNIVERSAL or L<Moose::Object>.  
+If you'd like to adjust this list, provide the B<complete> list (that is, 
+include the things below, and then some) here, as a hashref.
 
 The default list of methods skipped is:
 
