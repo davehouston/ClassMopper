@@ -79,6 +79,7 @@ sub _build_attributes {
    my $self = shift;
    my $meta = $self->_class;
    return unless ref $meta;
+   return if $meta->isa('Moose::Meta::Role');
    my @attributes = $meta->get_all_attributes;
    if( @attributes ) { 
       my @chunks = map { $self->_build_attribute_paragraph( $_ ) } @attributes;
@@ -90,6 +91,7 @@ sub _build_methods {
    my $self = shift;
    my $meta = $self->_class;
    return unless ref $meta;
+   return if $meta->isa('Moose::Meta::Role');
    my @methods = $meta->get_all_methods;
 
    if( @methods ) { 
