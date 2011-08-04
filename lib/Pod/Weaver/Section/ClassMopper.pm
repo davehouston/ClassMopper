@@ -58,7 +58,7 @@ sub weave_section {
    $self->_get_classname( $input );
    
    if( $input->{mopper}->{include_private} ) { 
-      $self->include_privates( 1 );
+      $self->include_private( 1 );
    }
 
    if( $input->{mopper}->{no_tagline} ) { 
@@ -133,7 +133,7 @@ sub _build_method_paragraph {
    }
 
    if( $name =~ /^_/ ) { 
-      return unless $self->include_privates; # skip over privates, unless we don't.
+      return unless $self->include_private; # skip over privates, unless we don't.
    }
 
    my $bits = [];
@@ -165,7 +165,7 @@ sub _build_attribute_paragraph {
    
    if( $attribute->name =~ /^_/ ) { 
       # Skip the _methods unless we shouldn't.
-      return unless $self->_include_privates;
+      return unless $self->_include_private;
    }
 
    my $bits = [];

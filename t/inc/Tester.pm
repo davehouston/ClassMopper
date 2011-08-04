@@ -14,6 +14,8 @@ has 'testattr2' => (
 
  sub method1 { }
 
+sub _private_method { }
+
 __PACKAGE__->meta->make_immutable;
 
 =pod
