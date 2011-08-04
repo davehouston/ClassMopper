@@ -1,38 +1,55 @@
 package Pod::Weaver::Section::ClassMopper;
 use Moose;
+use Moose::Util::TypeConstraints;
 use Pod::Elemental::Element::Pod5::Command;
 use Pod::Elemental::Element::Pod5::Ordinary;
 use Pod::Elemental::Element::Nested;
+use List::Util qw(first);
 
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 
 # ABSTRACT: Generate some stuff via introspection
 
 with 'Pod::Weaver::Role::Section';
 
+subtype 'Pod::Weaver::Section::ClassMopper::MethodListType'
+   => as 'ArrayRef';
+
+coerce 'Pod::Weaver::Section::ClassMopper::MethodListType'
+   => from 'Str'
+   => via { 
+      [split(/\s+/, $_)]
+   };
+
 has '_attrs' => ( is => 'rw' );
 has '_methods' => ( is => 'rw' );
 has '_class' => ( is => 'rw' );
 
-has '_method_skip' => ( 
+has 'skip_method_list' => ( 
    is => 'ro', 
-   isa => 'HashRef',
-   default => sub {{       # yeah, ugly.  Zip it.
-      meta => 1,
-      BUILDARGS => 1,
-      BUILDALL => 1,
-      DEMOLISHALL => 1,
-      does => 1,
-      DOES => 1,
-      dump => 1,
-      can => 1,
-      VERSION => 1,
-      DESTROY => 1
-   }}
+   isa => 'Pod::Weaver::Section::ClassMopper::MethodListType',
+   coerce => 1,
+   default => sub { [qw(
+      meta
+      BUILDARGS
+      BUILDALL 
+      DEMOLISHALL 
+      does 
+      DOES 
+      dump 
+      can
+      VERSION
+      DESTROY 
+   )]}
 );
 
-has '_include_privates' => ( is => 'rw', default => 0 );
-has '_skip_tagline' => ( is => 'rw', default => 0 );
+
+
+has [qw(no_tagline include_private skip_attributes skip_methods)] => ( 
+   is => 'rw',
+   isa => 'Bool',
+   default => 0
+);
 
 sub weave_section { 
    my $self = shift;
@@ -41,18 +58,18 @@ sub weave_section {
    $self->_get_classname( $input );
    
    if( $input->{mopper}->{include_private} ) { 
-      $self->_include_privates( 1 );
+      $self->include_privates( 1 );
    }
 
    if( $input->{mopper}->{no_tagline} ) { 
-      $self->_skip_tagline( 1 );
+      $self->no_tagline( 1 );
    }
 
    if( $input->{mopper}->{skip_method_list} ) { 
-      $self->_method_skip( $input->{mopper}->{skip_method_list} );
+      $self->skip_method_list( $input->{mopper}->{skip_method_list} );
    }
 
-   unless( $input->{mopper}->{skip_attributes} ) { 
+   unless( $input->{mopper}->{skip_attributes} || $self->skip_attributes ) { 
       $self->_build_attributes( );
       if( $self->_attrs ) { 
          push @{$document->children},  Pod::Elemental::Element::Nested->new({
@@ -63,7 +80,7 @@ sub weave_section {
        }
   }
 
-   unless( $input->{mopper}->{skip_methods} ) { 
+   unless( $input->{mopper}->{skip_methods} || $self->skip_methods ) { 
       $self->_build_methods( );
       if( $self->_methods ) { 
          push @{$document->children}, Pod::Elemental::Element::Nested->new({ 
@@ -107,7 +124,7 @@ sub _build_method_paragraph {
    return unless ref $method;
    my $name = $method->name;
 
-   if( exists $self->_method_skip->{$name} ) { 
+   if( first { $_ eq $name } @{$self->skip_method_list} ) {
       return;  # Skip over some of the more .. UNIVERSAL methods..
    }
 
@@ -116,7 +133,7 @@ sub _build_method_paragraph {
    }
 
    if( $name =~ /^_/ ) { 
-      return unless $self->_include_privates; # skip over privates, unless we don't.
+      return unless $self->include_privates; # skip over privates, unless we don't.
    }
 
    my $bits = [];
@@ -126,7 +143,7 @@ sub _build_method_paragraph {
       });
    }
 
-   unless( $self->_skip_tagline ) { 
+   unless( $self->no_tagline ) { 
       push @$bits, Pod::Elemental::Element::Pod5::Ordinary->new({ 
          content => 'This documentation was automaticaly generated.'
       });
@@ -191,7 +208,7 @@ sub _build_attribute_paragraph {
       });
    }
 
-   unless( $self->_skip_tagline ) { 
+   unless( $self->no_tagline ) { 
       # Adds the 'auto generated' tagline, unless not.
       push @$bits, Pod::Elemental::Element::Pod5::Ordinary->new({ 
          content => 'This documentation was automatically generated.'
@@ -288,12 +305,19 @@ All options are checked under the C<mopper> part of the input..
       skip_methods => 0,
       no_tagline => 0,
       skip_method_list => { 
-         # see below..
-         { DESTROY => 1, AUTOLOAD => 1 }
+         [qw(DOES AUTOLOAD can)] # .. see below
       }
    },
    ...
  });
+
+Additionally, options passed via C<weaver.ini>, by the same name, should also
+be accepted. 
+
+ [ClassMopper]
+ no_tagline = 1
+ skip_method_list = DOES AUTOLOAD can  
+etc.
 
 =head2 C<include_private>
 
@@ -315,7 +339,7 @@ by default.
 By default, there are several methods (see below) that will be skipped when 
 generating your list.  Most of them are from UNIVERSAL or L<Moose::Object>.  
 If you'd like to adjust this list, provide the B<complete> list (that is, 
-include the things below, and then some) here, as a hashref.
+include the things below, and then some) here, as an arrayref.
 
 The default list of methods skipped is:
 

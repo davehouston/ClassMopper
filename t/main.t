@@ -11,7 +11,7 @@ ok( $weaver = Pod::Weaver->new_from_config({ root => 't'}) );
 ok( my $document = $weaver->weave_document({
    ppi_document => $doc,
    mopper => { 
-      no_tagline => 1
+#      no_tagline => 1     # moved to weaver.ini
    },
    authors => ['Bob MctestAthor']
 }), 'Weaving document..');
@@ -67,4 +67,6 @@ Bob MctestAthor
 HERE
 
 is( $document->as_pod_string, $expected, 'Did it work?');
+
+
 done_testing;
