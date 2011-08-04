@@ -6,7 +6,7 @@ use Pod::Elemental::Element::Pod5::Ordinary;
 use Pod::Elemental::Element::Nested;
 use List::Util qw(first);
 
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 
 # ABSTRACT: Generate some stuff via introspection
 
