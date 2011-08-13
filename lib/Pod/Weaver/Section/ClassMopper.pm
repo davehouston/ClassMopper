@@ -165,7 +165,7 @@ sub _build_attribute_paragraph {
    
    if( $attribute->name =~ /^_/ ) { 
       # Skip the _methods unless we shouldn't.
-      return unless $self->_include_private;
+      return unless $self->include_private;
    }
 
    my $bits = [];
