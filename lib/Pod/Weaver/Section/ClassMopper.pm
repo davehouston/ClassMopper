@@ -145,7 +145,7 @@ sub _build_method_paragraph {
 
    unless( $self->no_tagline ) { 
       push @$bits, Pod::Elemental::Element::Pod5::Ordinary->new({ 
-         content => 'This documentation was automaticaly generated.'
+         content => 'This documentation was automatically generated.'
       });
    }
 
