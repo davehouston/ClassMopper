@@ -51,10 +51,6 @@ Method originates in Tester.
 
 Method originates in Tester.
 
-=head2 new
-
-Method originates in Tester.
-
 =head2 method1
 
 Method originates in Tester.

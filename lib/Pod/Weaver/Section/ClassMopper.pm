@@ -30,19 +30,11 @@ has 'skip_method_list' => (
    is => 'ro', 
    isa => 'Pod::Weaver::Section::ClassMopper::MethodListType',
    coerce => 1,
-   default => sub { [qw(
-      meta
-      BUILDARGS
-      BUILDALL 
-      DEMOLISHALL 
-      does 
-      DOES 
-      dump 
-      can
-      isa
-      VERSION
-      DESTROY 
-   )]}
+   default => sub { 
+      my @list = Moose::Object->meta->get_all_method_names;
+      push @list, 'can';
+      return \@list;
+   }
 );
 
 
@@ -344,27 +336,34 @@ generating your list.  Most of them are from UNIVERSAL or L<Moose::Object>.
 If you'd like to adjust this list, provide the B<complete> list (that is, 
 include the things below, and then some) here, as an arrayref.
 
-The default list of methods skipped is:
+The default list of methods skipped is derived from L<Moose::Object>'s list
+of methods.  At teh time of writing, that list is:
 
 =over 4
 
-=item BUILDARGS
-
-=item BUILDALL
+=item dump
 
 =item DEMOLISHALL
 
+=item meta
+
 =item does
 
-=item DOES
+=item new
 
-=item dump
+=item DESTROY
+
+=item BUILDALL
 
 =item can
 
+=item BUILDARGS
+
+=item isa
+
 =item VERSION
 
-=item DESTROY
+=item DOES
 
 =back
 
