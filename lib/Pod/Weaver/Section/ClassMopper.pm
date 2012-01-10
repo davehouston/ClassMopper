@@ -1,12 +1,13 @@
 package Pod::Weaver::Section::ClassMopper;
 use Moose;
 use Moose::Util::TypeConstraints;
+use Class::Load ':all';
 use Pod::Elemental::Element::Pod5::Command;
 use Pod::Elemental::Element::Pod5::Ordinary;
 use Pod::Elemental::Element::Nested;
 use List::Util qw(first);
 
-our $VERSION = '0.04';
+our $VERSION = '0.05';
 
 # ABSTRACT: Generate some stuff via introspection
 
@@ -38,6 +39,7 @@ has 'skip_method_list' => (
       DOES 
       dump 
       can
+      isa
       VERSION
       DESTROY 
    )]}
@@ -244,7 +246,8 @@ sub _get_classname {
       # Shamelessly stolen from Pod::Weaver::Section::Name.  Thanks rjbs!
       ($classname) = $ppi->serialize =~ /^\s*#+\s*PODNAME:\s*(.+)$/m;
    }
-   Class::MOP::load_class( $classname );  # So the meta has .. something.
+   load_class( $classname );
+#   Class::MOP::load_class( $classname );  # So the meta has .. something.
    my $meta = Class::MOP::Class->initialize( $classname );
    $self->_class( $meta );
    return $classname;
