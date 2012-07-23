@@ -337,7 +337,7 @@ If you'd like to adjust this list, provide the B<complete> list (that is,
 include the things below, and then some) here, as an arrayref.
 
 The default list of methods skipped is derived from L<Moose::Object>'s list
-of methods.  At teh time of writing, that list is:
+of methods.  At the time of writing, that list is:
 
 =over 4
 
