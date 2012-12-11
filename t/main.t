@@ -64,5 +64,4 @@ HERE
 
 is( $document->as_pod_string, $expected, 'Did it work?');
 
-
 done_testing;
