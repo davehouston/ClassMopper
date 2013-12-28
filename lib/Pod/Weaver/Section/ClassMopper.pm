@@ -91,9 +91,10 @@ sub _build_attributes {
    my $meta = $self->_class;
    return unless ref $meta;
    return if $meta->isa('Moose::Meta::Role');
-   my @attributes = sort $meta->get_all_attributes;
+   my @attributes = $meta->get_all_attributes;
    if( @attributes ) { 
-      my @chunks = map { $self->_build_attribute_paragraph( $_ ) } @attributes;
+      my @chunks = map { $self->_build_attribute_paragraph( $_ ) } 
+         sort { $a->{'name'} cmp $b->{'name'} } @attributes;
       $self->_attrs( \@chunks );
    }
 }
@@ -103,10 +104,11 @@ sub _build_methods {
    my $meta = $self->_class;
    return unless ref $meta;
    return if $meta->isa('Moose::Meta::Role');
-   my @methods = sort $meta->get_all_methods;
+   my @methods = $meta->get_all_methods;
 
    if( @methods ) { 
-      my @chunks =  map { $self->_build_method_paragraph( $_ ) } @methods;
+      my @chunks = map { $self->_build_method_paragraph( $_ ) }
+         sort { $a->{'name'} cmp $b->{'name'} } @methods;
       $self->_methods( \@chunks );
    }
 }

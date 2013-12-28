@@ -10,9 +10,7 @@ my $weaver;
 ok( $weaver = Pod::Weaver->new_from_config({ root => 't'}) );
 ok( my $document = $weaver->weave_document({
    ppi_document => $doc,
-   mopper => { 
-#      no_tagline => 1     # moved to weaver.ini
-   },
+   mopper => { },
    authors => ['Bob MctestAthor']
 }), 'Weaving document..');
 
@@ -43,15 +41,15 @@ Additional documentation: This is a documentation option test.  It is a string. 
 
 =head1 METHODS
 
+=head2 method1
+
+Method originates in Tester.
+
 =head2 testattr1
 
 Method originates in Tester.
 
 =head2 testattr2
-
-Method originates in Tester.
-
-=head2 method1
 
 Method originates in Tester.
 
