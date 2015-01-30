@@ -6,6 +6,7 @@ use Pod::Elemental::Element::Pod5::Command;
 use Pod::Elemental::Element::Pod5::Ordinary;
 use Pod::Elemental::Element::Nested;
 use List::Util qw(first);
+use Try::Tiny;
 
 our $VERSION = '0.06';
 
@@ -49,7 +50,7 @@ sub weave_section {
    my $self = shift;
    my( $document, $input ) = @_;
 
-   $self->_get_classname( $input );
+   return if (! defined $self->_get_classname( $input ));
    
    if( $input->{mopper}->{include_private} ) { 
       $self->include_private( 1 );
@@ -240,10 +241,16 @@ sub _get_classname {
       # Shamelessly stolen from Pod::Weaver::Section::Name.  Thanks rjbs!
       ($classname) = $ppi->serialize =~ /^\s*#+\s*PODNAME:\s*(.+)$/m;
    }
-   load_class( $classname );
-#   Class::MOP::load_class( $classname );  # So the meta has .. something.
-   my $meta = Class::MOP::Class->initialize( $classname );
-   $self->_class( $meta );
+
+   try {
+       local @INC=('lib',@INC);
+       load_class( $classname );
+       my $meta = Class::MOP::Class->initialize( $classname );
+       $self->_class( $meta );
+   }
+   catch {
+       $classname=undef;
+   };
    return $classname;
 }
 
