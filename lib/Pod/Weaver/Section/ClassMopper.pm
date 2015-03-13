@@ -243,7 +243,7 @@ sub _get_classname {
    }
 
    try {
-       local @INC=('lib',@INC);
+       local @INC=('blib',@INC);
        load_class( $classname );
        my $meta = Class::MOP::Class->initialize( $classname );
        $self->_class( $meta );
