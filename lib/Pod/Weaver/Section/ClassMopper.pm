@@ -380,6 +380,18 @@ of methods.  At the time of writing, that list is:
 
 Dave Houston, C<dhouston@cpan.org>, 2010.
 
+=head1 CONTRIBUTORS
+
+=over 3
+
+=item Alexei Znamensky <russoz@cpan.org>
+
+=item Caleb Cushing <xenoterracide@gmail.com>
+
+=item Edward Ash <eash@nvidia.com>
+
+=back
+
 =head1 LICENSE
 
 This library is free software; you may redistribute and/or modify it under
